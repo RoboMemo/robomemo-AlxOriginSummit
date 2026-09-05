@@ -115,7 +115,7 @@
         → MuJoCo 仿真回放与录制 → CSV + PKL + MP4
 ```
 
-工程现状：已为不同视频集建立**独立运行入口**（复制 `.bat` 模板 → 设 `VIDEO` 与 `OUTPUT_ROOT` → WHAM→GMR→MuJoCo → 查看回放、按效果调参），避免输出互相覆盖。端到端路线已明确，下一步**落地配置并验证推理流程**。
+工程现状：**WHAM→GMR→MuJoCo 链路已在 GPU 上跑通**（见 `demo/demo1.mp4` / `demo2` / `demo3.mp4` 实测回放），已为不同视频集建立独立运行入口（复制 `.bat` 模板 → 设 `VIDEO` 与 `OUTPUT_ROOT`），避免输出互相覆盖。剩余工作：**迁移到 RoboMemoClaw 的 A100 后端，并接入 agent 的 tool 体系**（注册为 pipeline tool 后即可被一键 orchestrator 与 LLM ReAct 两条路径调用）。
 
 ---
 
