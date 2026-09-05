@@ -2,7 +2,7 @@
 
 **Raw Data in, Robot-Ready Out.**
 
-> 主项目见 [`RoboMemo/robomemo-core`](https://github.com/RoboMemo/robomemo-core)：具身智能数据基础设施——把人类演示视频变成机器人可训练数据集（π0 / GR00T / UniVLA 兼容）。
+> 官网：**[robomemo.ai](https://robomemo.ai/)** ｜ 主项目见 [`RoboMemo/robomemo-core`](https://github.com/RoboMemo/robomemo-core)：具身智能数据基础设施——把人类演示视频变成机器人可训练数据集（π0 / GR00T / UniVLA 兼容）。
 > 本仓库是 **AlxOrigin Summit（9/5–9/6）的中期进展报告**， Summit 期间主攻方向：**三阶段数据管线 + 定量评审体系**——让"这条数据值不值得入库、值不值得训、训出来打不打得过"变成有公式、有阈值、有 gate 的自动判定。
 
 ---
