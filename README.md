@@ -61,11 +61,27 @@
 - 聊天记录持久化（localStorage + 运行时 shape 校验），切页/刷新不丢会话；
 - 修复**中文任务文本上传事故**（详见技术难点 #4），非 ASCII 单文件上传改走 batch 通道。
 
-### 5. 采集链路鲁棒性
-- 板子中途掉线不再挂死录制锁（finalize/scp 全部带超时与未捕获异常兜底）；
-- ReViV 第一人称 egocentric pose 后端集成完毕。
+### 5. 采集链路：Odin2 X5 接入 + 鲁棒性（PR #96 / #97）
+- **Odin2 X5 LiDAR 采集接入**：P0 驱动跑通并验收数据流（26 个 topic；IMU 509 Hz、双目 39 Hz 同步、点云 13 Hz）；P1 采集工具三件套（bag 校验 / 参数化日常录制 / 15 分钟长稳验收）；长稳结果**零丢帧、双目 100% <1ms 同步、零断连**——质量足够喂 V2D；代码归位 `onboard/Ego2L`，新增 autosync / export_preview；
+- 板子中途掉线不再挂死录制锁（finalize/scp 全部带超时与未捕获异常兜底）。
 
-### 6. CI 全绿
+### 6. Agent：姿态源与本体解耦（PR #91 关联 + 9/6 两笔）
+- **ReViV→A5 打通**：摘除 orchestrator 中"第一人称姿态只能配 G1"的硬阻断，姿态源与目标本体正交组合；
+- **本体意图解析**：任务文本里「retarget 到 A5」不再被静默忽略、误跑 G1 管线；
+- **落盘数据自动注册 Datasets**（#99）：Ego2L / Ego4 / 上传数据全覆盖，录制完成即入库。
+
+### 7. Console：数据可见性与遥操界面（PR #103 / #104 / #106 / #109 / #110）
+- Datasets 页打通 owned-datasets：Ego2L / Ego4 / 上传落盘数据同屏可见，最新录制置顶；
+- 「Captured Data」统一命名，Home / Datasets / Owned datasets 三处同步；
+- Teleop-Ego2L 布局重构：点云缩至左下、IMU 右下，Retarget 区成为遥操主视区；
+- 采集 / 开源区块标题统一英文，界面语言一致化。
+
+### 8. 工程效能与部署（PR #100 / #93 / #98 / #101）
+- **Mac 开发环境移植套件**：源机导出（≈9G 全套 / light / `--pull` 远程拉取）/ 新机幂等安装 / PASS-FAIL 体检，三通道 runbook；
+- **Supabase 门禁接入套件**：backend.env 模板 + 门禁自检脚本（health / 匿名 401 / 伪 token 401 / CORS 预检 / 三档角色探针）+ 切换运行手册，service key 永不入库；
+- **Feedback 闭环**：GitHub issue close → Supabase feedback 同步（#93），webhook 字段修复（#98/#101）。
+
+### 9. CI 全绿
 - Python Agent job 补装 `opencv-python-headless`，全分支 CI 红清零。
 
 ---
@@ -91,7 +107,7 @@
 |---|---|---|
 | 1 | **Ego2L / Ego4 本地录制** | Ego2L（双目 LiDAR）与 Ego4（四目）目前**仅支持串流**，录制链路待打通——能落盘才能量产进管线 |
 | 2 | **第一人称 / 第三人称区分** | 管线暂不区分视角；计划在①筛选&路由阶段显式标记视角，作为骨架检测后端路由的前置 |
-| 3 | **全身+双手骨架检测——按视角路由后端** | 第一人称单目 → **ReViV**（已集成）；第三人称 → **WHAM**（待接入，路线已明确，见下）；第一/第三混合 → **EgoExo**（待接入） |
+| 3 | **全身+双手骨架检测——按视角路由后端** | 第一人称单目 → **ReViV**（已集成，→G1 / →A5 均已打通）；第三人称 → **WHAM**（GPU 已跑通，待接入，见下）；第一/第三混合 → **EgoExo**（待接入） |
 | 4 | **Retarget 双后端测试** | **XRobokot** 与 **GMR** 均已部署、**尚未测试**——待用 golden 集验证，并接入 L1 评分 gate |
 
 ### 补充：第三人称技术路线——WHAM → GMR → MuJoCo（8 阶段端到端）
@@ -144,23 +160,27 @@ G1 侧没有灵巧手，手部 retarget 算法的输出**没有任何执行端�
 → 现状：G1 = 仿真平衡 ✅ / 真机未测；A5 = 未验证。
 → 缓解：A5 补一轮 MuJoCo（或 Placo 前向仿真）回放对齐 G1 的验证标准；G1 下一步上真机 + 任务效果评分（对应复赛 L2 harness）。
 
-**6. 并发 / 竞态类故障（9/4–9/5 连爆三例）**
+**6. Odin2 X5 接入的固件与系统级坑（#96 实录）**
+IMU `header.stamp` 固件 bug（30 秒只走 0.03 秒，需自动 fallback bag 墙钟并标注）；重启后 hostapd 抢占 wlan0 断连（需三步恢复）；设备端编译 OOM（`-j8` 压到 `-j2` + 2G swap 才通过）；`pgrep/pkill -x` 被 comm 15 字符截断，曾误判"SIGINT 不干净"。
+→ 全部沉淀进 handoff 文档与工具：`odin2_bag_check.py` 自动检测固件时间戳问题并标注，新设备接入前先过坑清单。
+
+**7. 并发 / 竞态类故障（9/4–9/5 连爆三例）**
 多会话并发死锁、uvloop 对已退出进程 `kill()` 抛 `ProcessLookupError`、板子中途掉线挂死录制锁。
 → 教训已固化为规范：**所有外部资源（子进程 / SSH / 板载连接）必须带超时 + 幂等清理**，异常路径不允许裸 await。
 
-**7. HTTP header 非 ASCII 事故（9/5 15:32）**
+**8. HTTP header 非 ASCII 事故（9/5 15:32）**
 中文任务文本放进 `X-Task` header → 浏览器 `fetch` 直接 TypeError，上传链路中断。
 → 修复：header 只承载 ASCII id，业务载荷全部走 JSON body（单文件上传改走 batch 通道）。
 → 教训：**header 永远不传业务文本**，多语言内容一律 body 化。
 
-**8. 定量评审缺乏 ground truth 分界**
+**9. 定量评审缺乏 ground truth 分界**
 三阶段框架最大的不确定性：R₀ / τ 等阈值没有现成真值，定松了放进坏数据、定紧了误杀好数据。
 → 缓解：golden 集（346 真实帧 + 近期 job 产物）跑分布，阈值定在"好样本明显通过、已知坏样本明显打回"的分界；阈值全部进 config 不改代码可调；60–75 灰区一律 `ask_human` 人工复核兜底。
 
-**9. canonical 中间产物单 job 限制**
+**10. canonical 中间产物单 job 限制**
 `extract_pose` / `fit_smplify` 写 hardcoded 路径，同一时刻只能支持一个活跃 job，演示时无法多任务并行。
 → 计划 9/6 演示脚本按单任务串行规避；workdir 参数化列入后续重构。
 
 ---
 
-*Maintained by RoboMemo team · 中期节点 2026-09-05 · 终期报告随 9/6 演示更新*
+*Maintained by RoboMemo team · 中期节点 2026-09-05 · 内容更新至 2026-09-06 上午（同步 robomemo-core main 至 PR #110）· 终期报告随 9/6 演示更新*
